@@ -1,0 +1,7 @@
+dependencies {
+  implementation(project(":common")) {
+    exclude group: "org.springframework.cloud", module: "spring-cloud-stream-binder-rabbit"
+  }
+
+  implementation("com.googlecode.libphonenumber:libphonenumber:${libphonenumberVersion}")
+}

@@ -1,0 +1,250 @@
+version: "3.6"
+
+networks:
+  proxy:
+    driver: overlay
+    external: true
+
+secrets:
+  tls_cert_file:
+    external: true
+  tls_key_file:
+    external: true
+  tls_dhparam_file:
+    external: true
+  keystore_file:
+    external: true
+  keystore_secret:
+    external: true
+  truststore_file:
+    external: true
+  truststore_secret:
+    external: true
+  firebase_credential_file:
+    external: true
+
+services:
+  ##################################################################################################
+  # APIs
+  ##################################################################################################
+  auth-server:
+    image: registry.gitlab.com/arch18/a18/auth-server:0.0.1
+    hostname: auth-server
+    networks:
+      - proxy
+    env_file:
+      - staging.env
+    environment:
+      SPRING_PROFILES_ACTIVE: staging
+    secrets:
+      - source: keystore_file
+        target: keystore.p12
+        uid: "0"
+        mode: 0400
+      - source: keystore_secret
+        target: keystore_secret
+        uid: "0"
+        mode: 0400
+      - source: truststore_file
+        target: truststore.p12
+        uid: "0"
+        mode: 0400
+      - source: truststore_secret
+        target: truststore_secret
+        uid: "0"
+        mode: 0400
+      - source: firebase_credential_file
+        target: firebase_credential.json
+        uid: "0"
+        mode: 0400
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 1m
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=proxy
+        - traefik.frontend.entryPoints=http,https
+        - traefik.frontend.rule=PathPrefix:/api/auth
+        - traefik.port=8470
+        - traefik.protocol=https
+
+  account-service:
+    image: registry.gitlab.com/arch18/a18/account-service:0.0.1
+    hostname: account-service
+    networks:
+      - proxy
+    env_file:
+      - staging.env
+    environment:
+      SPRING_PROFILES_ACTIVE: staging
+    secrets:
+      - source: keystore_file
+        target: keystore.p12
+        uid: "0"
+        mode: 0400
+      - source: keystore_secret
+        target: keystore_secret
+        uid: "0"
+        mode: 0400
+      - source: truststore_file
+        target: truststore.p12
+        uid: "0"
+        mode: 0400
+      - source: truststore_secret
+        target: truststore_secret
+        uid: "0"
+        mode: 0400
+      - source: firebase_credential_file
+        target: firebase_credential.json
+        uid: "0"
+        mode: 0400
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 1m
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=proxy
+        - traefik.frontend.entryPoints=http,https
+        - traefik.frontend.rule=PathPrefix:/api/account
+        - traefik.port=8403
+        - traefik.protocol=https
+
+  payment-service:
+    image: registry.gitlab.com/arch18/a18/payment-service:0.0.1
+    hostname: payment-service
+    networks:
+      - proxy
+    env_file:
+      - staging.env
+    environment:
+      SPRING_PROFILES_ACTIVE: staging
+    secrets:
+      - source: keystore_file
+        target: keystore.p12
+        uid: "0"
+        mode: 0400
+      - source: keystore_secret
+        target: keystore_secret
+        uid: "0"
+        mode: 0400
+      - source: truststore_file
+        target: truststore.p12
+        uid: "0"
+        mode: 0400
+      - source: truststore_secret
+        target: truststore_secret
+        uid: "0"
+        mode: 0400
+      - source: firebase_credential_file
+        target: firebase_credential.json
+        uid: "0"
+        mode: 0400
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 1m
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=proxy
+        - traefik.frontend.entryPoints=http,https
+        - traefik.frontend.rule=PathPrefix:/api/payment
+        - traefik.port=8404
+        - traefik.protocol=https
+
+  lottery-service:
+    image: registry.gitlab.com/arch18/a18/lottery-service:0.0.1
+    hostname: lottery-service
+    networks:
+      - proxy
+    env_file:
+      - staging.env
+    environment:
+      SPRING_PROFILES_ACTIVE: staging
+    secrets:
+      - source: keystore_file
+        target: keystore.p12
+        uid: "0"
+        mode: 0400
+      - source: keystore_secret
+        target: keystore_secret
+        uid: "0"
+        mode: 0400
+      - source: truststore_file
+        target: truststore.p12
+        uid: "0"
+        mode: 0400
+      - source: truststore_secret
+        target: truststore_secret
+        uid: "0"
+        mode: 0400
+      - source: firebase_credential_file
+        target: firebase_credential.json
+        uid: "0"
+        mode: 0400
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 1m
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=proxy
+        - traefik.frontend.entryPoints=http,https
+        - traefik.frontend.rule=PathPrefix:/api/lottery
+        - traefik.port=8402
+        - traefik.protocol=https
+
+  ##################################################################################################
+  # FRONT-END
+  ##################################################################################################
+  backoffice:
+    image: registry.gitlab.com/arch18/a18_backoffice:0.0.1
+    hostname: backoffice
+    networks:
+      - proxy
+    secrets:
+      - source: tls_cert_file
+        target: cert.pem
+        uid: "0"
+        mode: 0400
+      - source: tls_key_file
+        target: key.pem
+        uid: "0"
+        mode: 0400
+      - source: tls_dhparam_file
+        target: dhparam.pem
+        uid: "0"
+        mode: 0400
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 1m
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=proxy
+        - traefik.frontend.entryPoints=http,https
+        - traefik.frontend.rule=HostRegexp:backoffice.staging.3bwins.com,{subdomain:[a-z]*}.backoffice.staging.3bwins.com
+        - traefik.port=443
+        - traefik.protocol=https
+        - traefik.frontend.redirect.entryPoint=https

@@ -1,0 +1,287 @@
+version: "3.6"
+
+networks:
+  proxy:
+    external: true
+    driver: overlay
+
+secrets:
+  tls_cacert_file:
+    external: true
+  tls_cert_file:
+    external: true
+  tls_key_file:
+    external: true
+  tls_dhparam_file:
+    external: true
+  postgres_secret:
+    external: true
+  portainer_secret:
+    external: true
+  rabbitmq_secret:
+    external: true
+
+configs:
+  traefik:
+    file: ./traefik/traefik.toml
+  postgres_config_file:
+    file: ./postgres/postgresql.conf
+  postgres_hba_file:
+    file: ./postgres/pg_hba.conf
+  redis_config:
+    file: ./redis/redis.conf
+
+volumes:
+  pgdata:
+  rabbitmqdata:
+  redisdata:
+  portainerdata:
+
+services:
+  ##################################################################################################
+  # INFRASTRUCTURE
+  ##################################################################################################
+  traefik:
+    image: traefik:1.7.4
+    hostname: traefik
+    networks:
+      - proxy
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    configs:
+      - source: traefik
+        target: /etc/traefik/traefik.toml
+        mode: 0400
+    secrets:
+      - source: tls_cert_file
+        target: cert.pem
+        uid: "0"
+        mode: 0400
+      - source: tls_key_file
+        target: key.pem
+        uid: "0"
+        mode: 0400
+    deploy:
+      mode: global
+      placement:
+        constraints:
+          - node.role == manager
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=proxy
+        - traefik.frontend.entryPoints=http,https
+        - traefik.frontend.rule=Host:traefik.staging.3bwins.com
+        - traefik.port=8080
+        - traefik.protocol=https
+
+  rabbitmq:
+    image: rabbitmq:3.7.8-management
+    hostname: rabbitmq
+    ports:
+      - target: 5672
+        published: 5672
+        protocol: tcp
+        mode: host
+    networks:
+      - proxy
+    env_file:
+      - rabbitmq/rabbitmq.env
+    volumes:
+      - type: volume
+        source: rabbitmqdata
+        target: /var/lib/rabbitmq
+    secrets:
+      - source: rabbitmq_secret
+        target: rabbitmq_secret
+        uid: "999"
+        gid: "999"
+        mode: 0400
+      - source: tls_cacert_file
+        target: ca.pem
+        uid: "999"
+        gid: "999"
+        mode: 0400
+      - source: tls_cert_file
+        target: cert.pem
+        uid: "999"
+        mode: 0400
+      - source: tls_key_file
+        target: key.pem
+        uid: "999"
+        gid: "999"
+        mode: 0400
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=proxy
+        - traefik.frontend.entryPoints=http,https
+        - traefik.frontend.rule=Host:rabbitmq.staging.3bwins.com
+        - traefik.port=15671
+        - traefik.protocol=https
+
+  postgres:
+    image: postgres:10.6
+    hostname: postgres
+    command: ["-c", "config_file=/etc/postgresql/postgresql.conf", "-c", "hba_file=/etc/postgresql/pg_hba.conf"]
+    ports:
+      - target: 5432
+        published: 5432
+        protocol: tcp
+        mode: host
+    networks:
+      - proxy
+    env_file:
+      - ./postgres/postgres.env
+    volumes:
+      - type: bind
+        source: ./postgres/scripts
+        target: /docker-entrypoint-initdb.d
+        read_only: true
+      - type: volume
+        source: pgdata
+        target: /var/lib/postgresql/data/pgdata
+    configs:
+      - source: postgres_config_file
+        target: /etc/postgresql/postgresql.conf
+        uid: "999"
+        gid: "999"
+        mode: 0400
+      - source: postgres_hba_file
+        target: /etc/postgresql/pg_hba.conf
+        uid: "999"
+        gid: "999"
+        mode: 0400
+    secrets:
+      - source: postgres_secret
+        target: postgres_secret
+        uid: "999"
+        gid: "999"
+        mode: 0400
+      - source: tls_cacert_file
+        target: ca.pem
+        uid: "999"
+        gid: "999"
+        mode: 0400
+      - source: tls_cert_file
+        target: cert.pem
+        uid: "999"
+        gid: "999"
+        mode: 0400
+      - source: tls_key_file
+        target: key.pem
+        uid: "999"
+        gid: "999"
+        mode: 0400
+      - source: tls_dhparam_file
+        target: dhparam.pem
+        uid: "999"
+        gid: "999"
+        mode: 0400
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+
+  redis:
+    image: redis:5.0.3
+    hostname: redis
+    command: ["redis-server", "/etc/redis/redis.conf"]
+    networks:
+      - proxy
+    ports:
+      - target: 6379
+        published: 6379
+        protocol: tcp
+        mode: host
+    volumes:
+      - type: volume
+        source: redisdata
+        target: /data
+    configs:
+      - source: redis_config
+        target: /etc/redis/redis.conf
+        uid: "999"
+        mode: 0400
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+
+  portainer:
+    image: portainer/portainer:latest
+    hostname: portainer
+    command: ["--ssl", "--sslcert", "/run/secrets/cert.pem", "--sslkey", "/run/secrets/key.pem", "--tlscacert", "/run/secrets/ca.pem", "--tlscert", "/run/secrets/cert.pem", "--tlskey", "/run/secrets/key.pem", "-H", "unix:///var/run/docker.sock"]
+    networks:
+      - proxy
+    volumes:
+      - type: volume
+        source: portainerdata
+        target: /data
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    secrets:
+      - source: portainer_secret
+        target: portainer_secret
+        uid: "0"
+        mode: 0400
+      - source: tls_cacert_file
+        target: ca.pem
+        uid: "0"
+        mode: 0400
+      - source: tls_cert_file
+        target: cert.pem
+        uid: "0"
+        mode: 0400
+      - source: tls_key_file
+        target: key.pem
+        uid: "0"
+        mode: 0400
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=proxy
+        - traefik.frontend.entryPoints=http,https
+        - traefik.frontend.rule=Host:portainer.staging.3bwins.com
+        - traefik.port=9000
+        - traefik.protocol=https
+
+

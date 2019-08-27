@@ -1,0 +1,7 @@
+dependencies {
+  implementation(project(":common"))
+
+  implementation("org.springframework.boot:spring-boot-starter-data-redis")
+
+  implementation("com.rometools:rome:${romeVersion}")
+}

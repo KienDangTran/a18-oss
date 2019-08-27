@@ -1,0 +1,8 @@
+rootProject.name = 'a18'
+
+include 'common'
+include 'auth-server'
+include 'account-service'
+include 'payment-service'
+include 'lottery-service'
+

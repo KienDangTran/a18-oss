@@ -1,0 +1,39 @@
+debug = true
+insecureSkipVerify = true
+logLevel = "INFO"
+
+[retry]
+
+[healthcheck]
+
+[entryPoints]
+  [entryPoints.http]
+  address = ":80"
+  compress = true
+  [entryPoints.https]
+  address = ":443"
+  compress = true
+  [entryPoints.https.tls]
+    [[entryPoints.https.tls.certificates]]
+    certFile = "/run/secrets/cert.pem"
+    keyFile = "/run/secrets/key.pem"
+  [entryPoints.dashboard]
+  address = ":8080"
+  compress = true
+  [entryPoints.dashboard.tls]
+    [[entryPoints.dashboard.tls.certificates]]
+    certFile = "/run/secrets/cert.pem"
+    keyFile = "/run/secrets/key.pem"
+
+[docker]
+watch = true
+swarmMode = true
+exposedByDefault = false
+
+[api]
+entryPoint = "dashboard"
+dashboard = true
+debug = true
+
+[ping]
+entryPoint = "ping"

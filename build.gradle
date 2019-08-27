@@ -1,0 +1,80 @@
+plugins {
+  id 'org.springframework.boot' version '2.1.6.RELEASE'
+  id 'com.bmuschko.docker-spring-boot-application' version '4.10.0'
+}
+
+subprojects {
+  apply plugin: 'java'
+  apply plugin: 'io.spring.dependency-management'
+  apply plugin: 'org.springframework.boot'
+  apply plugin: 'com.bmuschko.docker-spring-boot-application'
+
+  group = 'com.a18'
+  version = '0.0.1'
+  sourceCompatibility = 11
+  targetCompatibility = 11
+
+  repositories {
+    mavenCentral()
+    jcenter()
+    maven { url = 'https://repo.spring.io/snapshot' }
+    maven { url = 'https://repo.spring.io/milestone' }
+  }
+
+  dependencyManagement {
+    imports {
+      mavenBom 'org.springframework.cloud:spring-cloud-dependencies:Greenwich.RELEASE'
+    }
+  }
+
+  dependencies {
+    compileOnly("org.projectlombok:lombok:${lombokVersion}")
+    annotationProcessor("org.projectlombok:lombok:${lombokVersion}")
+  }
+
+  docker {
+    registryCredentials {
+      username = getConfigurationProperty('DOCKER_USERNAME', 'docker.username')
+      password = getConfigurationProperty('DOCKER_PASSWORD', 'docker.password')
+      email = getConfigurationProperty('DOCKER_EMAIL', 'docker.email')
+    }
+
+    springBootApplication {
+      baseImage = 'openjdk:11.0.3-slim-stretch'
+      tag = 'registry.gitlab.com/arch18/' + rootProject.name +
+              '/' +
+              archivesBaseName +
+              ':' +
+              jar.getArchiveVersion().get()
+      ports = [
+              project.findProperty(archivesBaseName + '.http.port') == null
+                      ? 8080
+                      : project.findProperty(archivesBaseName + '.http.port').toInteger(),
+              project.findProperty(archivesBaseName + '.http.port') == null
+                      ? 8443
+                      : project.findProperty(archivesBaseName + '.https.port').toInteger()
+      ]
+      jvmArgs = [
+              '-Xms512m',
+              '-Djava.net.preferIPv4Stack=true',
+              '-XX:+PrintCommandLineFlags',
+              '-XX:+UseCompressedClassPointers',
+              '-XX:+UseCompressedOops',
+              '-XX:+UseStringDeduplication'
+      ]
+    }
+  }
+}
+
+String getConfigurationProperty(String envVar, String sysProp) {
+  System.getenv(envVar) ?: project.findProperty(sysProp)
+}
+
+project(':common') {
+  bootJar.enabled = false
+  jar.enabled = true
+
+  dockerBuildImage.enabled = false
+  dockerCreateDockerfile.enabled = false
+  dockerPushImage.enabled = false
+}

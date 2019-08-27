@@ -1,0 +1,20 @@
+dependencies {
+  compile("org.springframework.boot:spring-boot-starter-data-jpa")
+  compile("org.springframework.boot:spring-boot-starter-data-rest")
+  compile("org.springframework.boot:spring-boot-starter-actuator")
+
+  compile("org.springframework.cloud:spring-cloud-starter-oauth2")
+  compile("org.springframework.cloud:spring-cloud-stream-binder-rabbit")
+
+  compile("com.google.firebase:firebase-admin:${firebaseAdminVersion}")
+
+  compile("org.apache.commons:commons-lang3:${apacheCommonLangVersion}")
+  compile("org.apache.commons:commons-math3:${apacheCommonMathVersion}")
+  compile("javax.xml.bind:jaxb-api:${jaxbVersion}")
+  compile("org.glassfish.jaxb:jaxb-runtime:${jaxbVersion}")
+  compile("javax.activation:activation:${javaxActivationVersion}")
+
+  runtimeOnly("org.postgresql:postgresql") {
+    exclude group: "org.slf4j", module: "slf4j-simple"
+  }
+}

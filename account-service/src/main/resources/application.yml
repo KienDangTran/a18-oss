@@ -1,0 +1,120 @@
+timezone: Asia/Ho_Chi_Minh
+locale: vi-VN
+
+app.port: ${ACCOUNT_SERVICE_HTTP_PORT:8003}
+account-service-uri: ${ACCOUNT_SERVICE_HOST:http://localhost}:${ACCOUNT_SERVICE_HTTP_PORT:8003}/account
+auth-server-uri: ${AUTH_SERVER_HOST:http://localhost}:${AUTH_SERVER_HTTP_PORT:7070}/auth
+
+firebase:
+  db-url: ${FIREBASE_DB_URL:https://arch18-216209.firebaseio.com}
+  project-name: ${FIREBASE_PRJ:arch18}
+  web-api-key: ${FIREBASE_API_KEY:AIzaSyCIbdNKS3TYkka4cbbm8alNF_cWYo60q2E}
+  service-account:
+    credential:
+      file: file:${FIREBASE_CREDENTIAL_FILE:docker/arch18-216209-firebase-adminsdk-vojrg-dac60a9de8.json}
+
+info:
+  id: ${spring.application.name}
+
+logging:
+  level:
+    com.a18: debug
+    root: info
+
+server:
+  port: ${AUTH_SERVER_HTTPS_PORT:8403}
+  servlet:
+    context-path: /account
+  ssl:
+    enabled: true
+    key-store: ${KEYSTORE:docker/tls/work/keystore.p12}
+    key-store-password: ${KEYSTORE_PASSWORD:changeit}
+    key-store-type: PKCS12
+    key-store-provider: SUN
+    key-alias: ${SSL_KEY_ALIAS:server}
+    key-password: ${KEYSTORE_PASSWORD:changeit}
+  compression:
+    enabled: true
+    mime-types: application/hal+json,application/json,application/xml,text/html,text/xml,text/plain,text/css,application/javascript
+  error:
+    whitelabel:
+      enabled: false
+
+security:
+  oauth2:
+    client:
+      access-token-validity-seconds: 86400
+      authentication-scheme: header
+      auto-approve-scopes: true
+      client-id: ${OATH2_CLIENT_ID:trusted-client}
+      client-secret: ${OATH2_CLIENT_SECRET:changeitnow}
+      grant-type: password
+      refresh-token-validity-seconds: 86400
+      token-name: token
+      access-token-uri: ${auth-server-uri}/oauth/token
+      resource-ids:
+        https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit
+      scope:
+        https://www.googleapis.com/auth/identitytoolkit
+    resource:
+      token-info-uri: ${auth-server-uri}/oauth/check_token
+      token-type: bearer
+
+spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:default}
+  application:
+    name: account-service
+  config:
+    name: ${spring.application.name}
+  cloud:
+    stream:
+      default:
+        consumer:
+          concurrency: 2
+          max-attempts: 3
+        content-type: application/json
+        group: ${firebase.project-name}
+      bindings:
+        payment-journal:
+          destination: payment-journal
+        lottery-journal:
+          destination: lottery-journal
+      default-binder: rabbit
+      rabbit:
+        binder:
+          connection-name-prefix: ${spring.application.name}.${spring.profiles.active}
+        bindings:
+          payment-journal:
+            consumer:
+              auto-bind-dlq: true
+              prefix: ${spring.profiles.active}.
+              dead-letter-exchange: ${spring.cloud.stream.rabbit.bindings.payment-journal.consumer.prefix}payment-journal.dlx
+          lottery-journal:
+            consumer:
+              auto-bind-dlq: true
+              prefix: ${spring.profiles.active}.
+              dead-letter-exchange: ${spring.cloud.stream.rabbit.bindings.lottery-journal.consumer.prefix}lottery-journal.dlx
+
+  datasource:
+    password: ${POSTGRES_PASSWORD:changeit}
+    username: ${POSTGRES_USER:postgres}
+    platform: 'postgres'
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:staging-3bwins}?currentSchema=account&stringtype=unspecified&preferQueryMode=simple
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate.jdbc.lob.non_contextual_creation: true
+  output:
+    ansi:
+      enabled: always
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_DEFAULT_USER:rabbitmq}
+    password: ${RABBITMQ_DEFAULT_PASS:changeit}
+    virtual-host: ${RABBITMQ_DEFAULT_VHOST:/}
+    listener:
+      type: direct
